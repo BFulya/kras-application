@@ -197,6 +197,23 @@ def test_referans_ligand_yuksek_eslesme_skoru_alir(seed_compounds):
     assert skor > 0.7, f"Referans ligand esigi gecemedi: {skor:.3f}"
 
 
+def test_gercek_inhibitorlerin_cogu_farmakofor_esigini_gecer(seed_compounds):
+    """Kritik kalibrasyon kontrolu (makale esigi: 0.7).
+
+    Ilk uygulamada ozellik-varligi agirligi 0.5'ti ve gercek KRAS
+    inhibitorlerinin yalnizca 3/19'u esigi geciyordu - yani makalenin kendi
+    referans ilaclari "farmakofor uyumsuz" sayiliyordu. Agirlik 0.75'e
+    cekildi; bu test o kalibrasyonu sabitler.
+    """
+    skorlar = np.array([pharmacophore_match_score(c.smiles) for c in seed_compounds])
+    gecen_orani = float((skorlar > 0.7).mean())
+
+    assert gecen_orani >= 0.7, (
+        f"Gercek inhibitorlerin yalnizca %{gecen_orani*100:.0f}'i farmakofor "
+        f"esigini geciyor (ortalama skor {skorlar.mean():.3f})"
+    )
+
+
 def test_ilgisiz_molekul_dusuk_eslesme_alir():
     assert pharmacophore_match_score(ETHANOL) < 0.5
 

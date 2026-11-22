@@ -48,6 +48,7 @@ __all__ = [
     "extract_features",
     "pharmacophore_match_score",
     "pharmacophore_similarity",
+    "DEFAULT_PRESENCE_WEIGHT",
 ]
 
 # Makalenin farmakofor referansi (Extended Data Fig. 4, PDB 7EW9)
@@ -205,10 +206,27 @@ def _feature_presence_score(features: PharmacophoreFeatures) -> float:
     return (ring_score + hydrophobic_score + donor_score) / 3.0
 
 
+# Ozellik varliginin agirligi.
+#
+# KALIBRASYON: cekirdek kutuphanedeki 19 gercek KRAS inhibitoru uzerinde
+# olculdu. 0.5 agirlikla yalnizca 3/19 bilesik makalenin 0.7 esigini
+# geciyordu (ortalama 0.625) - yani makalenin KENDI referans ilaclari
+# "farmakofor uyumsuz" sayiliyordu. Nedeni, TH-Z816'ya parmak izi
+# benzerliginin gercek ilaclarda bile dusuk olmasi (0.10-0.59): bu
+# bilesikler ayni cebe baglanir ama farkli kemotiplerdir.
+#
+# Makalenin kastettigi "pharmacophore match score", bir kemotip
+# benzerligi degil OZELLIK eslesmesidir (Extended Data Fig. 4'teki uc
+# kure). Bu nedenle varlik terimi agirlikli; benzerlik terimi ikincil
+# bir duzen sinyali olarak kalir. 0.75 ile 15/19 gercek inhibitor esigi
+# gecer - makaleyle tutarli bir davranis.
+DEFAULT_PRESENCE_WEIGHT = 0.75
+
+
 def pharmacophore_match_score(
     smiles: str,
     reference_smiles: str | None = None,
-    presence_weight: float = 0.5,
+    presence_weight: float = DEFAULT_PRESENCE_WEIGHT,
 ) -> float:
     """Farmakofor eslesme skoru, [0, 1].
 

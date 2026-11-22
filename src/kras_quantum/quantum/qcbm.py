@@ -288,6 +288,22 @@ class QCBM:
         makul bir secimdir.
         """
         max_iterations = max_iterations or self.config.max_iterations
+
+        # COBYLA, ilk simpleksi kurabilmek icin en az (parametre sayisi + 2)
+        # degerlendirme ister; daha azi verilirse scipy uyari basip degeri
+        # kendisi yukseltir. Devre buyudukce (16 qubit -> 200+ parametre)
+        # yapilandirmadaki sabit deger yetersiz kalir, bu yuzden alt siniri
+        # burada uyguluyoruz.
+        min_iterations = self.n_parameters + 2
+        if max_iterations < min_iterations:
+            logger.debug(
+                "COBYLA iterasyon sayisi %d -> %d yukseltildi (%d parametre)",
+                max_iterations,
+                min_iterations,
+                self.n_parameters,
+            )
+            max_iterations = min_iterations
+
         loss_fn = self.exact_nll if weighted else self.exact_nll_unweighted
         history = TrainingHistory()
 
