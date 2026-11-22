@@ -17,6 +17,7 @@ services:
       - ./src:/app/src
       - ./scripts:/app/scripts
       - ./tests:/app/tests
+      - ./data:/app/data
       - ./results:/app/results
       - ./data_cache:/app/data_cache
     # Varsayilan: etkilesimli kabuk
