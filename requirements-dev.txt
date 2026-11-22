@@ -1,0 +1,4 @@
+# Gelistirme ve test bagimliliklari
+# (calistirma icin gerekli degil; requirements.txt'ten ayri tutulur ki
+#  Docker katman onbellegi kod/test degisikliklerinde bozulmasin)
+pytest>=8.0

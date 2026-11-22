@@ -1,0 +1,24 @@
+# Gelistirme icin: kaynak kodu bind-mount edilir, konteyneri yeniden
+# kurmadan Windows tarafinda duzenleyip icerde calistirabilirsin.
+#
+#   docker compose build
+#   docker compose run --rm kras python scripts/01_build_dataset.py
+#   docker compose run --rm kras pytest -q
+
+services:
+  kras:
+    build: .
+    image: kras-quantum:latest
+    working_dir: /app
+    environment:
+      PYTHONPATH: /app/src
+    volumes:
+      # Kod ve sonuclar canli baglanir
+      - ./src:/app/src
+      - ./scripts:/app/scripts
+      - ./tests:/app/tests
+      - ./results:/app/results
+      - ./data_cache:/app/data_cache
+    # Varsayilan: etkilesimli kabuk
+    stdin_open: true
+    tty: true
