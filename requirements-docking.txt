@@ -1,0 +1,14 @@
+# Gercek molekuler docking yigini (opsiyonel ama onerilir).
+#
+# Makale, sanal taramada QuickVina 2 (makale kaynak 48) ve PLI skorlamada
+# Chemistry42 kullanir. Chemistry42 tescillidir; QuickVina 2 ise AutoDock
+# Vina'nin hizlandirilmis bir catalidir. Burada AutoDock Vina'nin kendisini
+# kullaniyoruz - ayni skorlama fonksiyonu ailesi.
+#
+# Bu paketler kurulu degilse hat yine calisir: PLI skorlamasi hizli vekil
+# modele duser (bkz. kras_quantum.scoring.pli).
+
+vina>=1.2.5              # AutoDock Vina Python baglantilari
+meeko>=0.5               # ligand -> PDBQT hazirlama
+gemmi>=0.6               # meeko'nun yapi ayristirici bagimliligi
+openbabel-wheel>=3.1.1   # protein PDB -> PDBQT donusumu

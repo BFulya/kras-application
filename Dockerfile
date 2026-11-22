@@ -27,6 +27,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
+# Docking yigini ayri katmanda (opsiyonel bilesen, sik degismez)
+COPY requirements-docking.txt .
+RUN pip install -r requirements-docking.txt
+
 # Test bagimliliklari ayri katmanda: calistirma bagimliliklarinin agir
 # onbellek katmani (torch, qiskit) bozulmadan guncellenebilir
 COPY requirements-dev.txt .

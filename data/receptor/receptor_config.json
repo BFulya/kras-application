@@ -1,0 +1,18 @@
+{
+  "pdb_id": "7EW9",
+  "chain": "A",
+  "cocrystal_ligand": "05C",
+  "receptor_pdbqt": "data/receptor/7EW9_A_receptor.pdbqt",
+  "center": {
+    "x": -1.3796388888888889,
+    "y": -12.645194444444444,
+    "z": 11.410555555555556
+  },
+  "size": {
+    "x": 19.162,
+    "y": 21.131,
+    "z": 21.391000000000002
+  },
+  "ph": 7.4,
+  "note": "Kutu merkezi, ko-kristal ligandin agirlik merkezinden hesaplandi (deneysel baglanma bolgesi). Makale, sanal taramada PDB 5US4 ve 14x14x20 A kutu kullanmistir; 7EW9 ise makalenin farmakofor ve PLI referans yapisidir (Extended Data Fig. 4)."
+}
