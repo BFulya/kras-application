@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Proje ciktilari (buyuk dosyalar git'e girmesin)
+results/**/*.csv
+results/**/*.json
+results/**/*.png
+results/**/*.pkl
+data_cache/
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# IBM Quantum kimlik bilgileri - ASLA commit edilmemeli
+.qiskit/
+qiskit-ibm.json
+.env

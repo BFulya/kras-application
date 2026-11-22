@@ -1,0 +1,21 @@
+# --- Kuantum ---
+qiskit>=1.2
+qiskit-aer>=0.15
+
+# IBM Quantum gercek donanimi icin (opsiyonel, Guadalupe/Falcon r4P yerine
+# gunumuzde Eagle/Heron cihazlari kullanilir)
+# qiskit-ibm-runtime>=0.30
+
+# --- Klasik ML ---
+torch>=2.2
+numpy>=1.26
+scipy>=1.11
+
+# --- Kimya ---
+rdkit>=2024.3.1
+selfies>=2.1.1
+
+# --- Yardimci ---
+pandas>=2.2
+matplotlib>=3.8
+tqdm>=4.66
