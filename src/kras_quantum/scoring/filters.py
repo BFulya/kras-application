@@ -120,6 +120,13 @@ class FilterThresholds:
     max_ring_size: int = 8
     min_sp3_fraction: float = 0.0
 
+    # Radikal elektronlar: uretici modeller SELFIES uzerinden [CH], [C] gibi
+    # karben/radikal atomlar uretebilir. Bunlar kimyasal olarak kararsiz ve
+    # sentezlenemezdir; makalenin "eliminate reactive, unsynthesizable or
+    # unstable groups" olcutune dogrudan girerler. Her iki filtre kumesinde
+    # de sifir tolerans uygulanir.
+    max_radical_electrons: int = 0
+
     # Yalnizca "stringent" (Chemistry42 vekili) kumede uygulanir
     max_formal_charge: int = 2
     max_unwanted_motifs: int = 0
@@ -202,6 +209,9 @@ def compute_properties(smiles: str) -> dict[str, float] | None:
         "n_rings": float(ring_info.NumRings()),
         "max_ring_size": float(max(ring_sizes)) if ring_sizes else 0.0,
         "formal_charge": float(abs(Chem.GetFormalCharge(mol))),
+        "n_radical_electrons": float(
+            sum(atom.GetNumRadicalElectrons() for atom in mol.GetAtoms())
+        ),
         "n_unwanted_motifs": float(count_unwanted_motifs(smiles)),
     }
 
@@ -268,6 +278,10 @@ def evaluate_filters(
     check(
         properties["n_unwanted_motifs"] <= thresholds.max_unwanted_motifs,
         f"istenmeyen_motif({properties['n_unwanted_motifs']:.0f})",
+    )
+    check(
+        properties["n_radical_electrons"] <= thresholds.max_radical_electrons,
+        f"radikal_elektron({properties['n_radical_electrons']:.0f})",
     )
     check(
         properties["max_ring_size"] <= thresholds.max_ring_size,

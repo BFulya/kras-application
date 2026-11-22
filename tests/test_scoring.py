@@ -78,6 +78,26 @@ def test_reaktif_gruplar_elenir():
     assert not passes_local_filter(EPOKSIT)
 
 
+def test_radikal_iceren_molekuller_elenir():
+    """Uretici model SELFIES uzerinden karben/radikal atomlar uretebilir.
+
+    Bu molekuller kimyasal olarak kararsiz ve sentezlenemezdir; makalenin
+    "eliminate reactive, unsynthesizable or unstable groups" olcutune
+    dogrudan girerler.
+
+    Asagidaki yapi, gercek bir kampanya kosusunda secim hunisinin SONUNA
+    kadar gelmis bir adaydir - filtre bunu kaciriyordu.
+    """
+    radikal_aday = "[CH]N=CCC(=O)CNCc1cccc2c1Oc1ccc-2c(F)c1C#C"
+
+    sonuc = evaluate_filters(radikal_aday, stringent=False)
+    assert not sonuc.passed
+    assert any("radikal" in f for f in sonuc.failures)
+
+    # Radikalsiz esdegeri etkilenmemeli
+    assert compute_properties(ASPIRIN)["n_radical_electrons"] == 0
+
+
 def test_istenmeyen_motif_dogru_tanimlanir():
     assert "acil_halojenur" in find_unwanted_motifs(ACIL_KLORUR)
     assert "epoksit" in find_unwanted_motifs(EPOKSIT)

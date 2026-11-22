@@ -65,8 +65,8 @@ yönlendirebilir — makalenin "qubit limitations" sorununa getirdiği çözüm 
 ## Hızlı başlangıç
 
 ```bash
-git clone https://github.com/BFulya/kras-app.git
-cd kras-app
+git clone https://github.com/BFulya/kras-application.git
+cd kras-application
 
 # 1) Ortamı kur (qiskit + rdkit + torch + AutoDock Vina)
 docker compose build
