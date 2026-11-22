@@ -39,10 +39,11 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+
+import numpy as np
 
 from kras_quantum.config import PROJECT_ROOT
 
@@ -55,9 +56,30 @@ __all__ = [
     "DockingBox",
     "load_receptor_config",
     "get_pli_scorer",
+    "SURROGATE_MODEL_PATH",
+    "SURROGATE_FEATURES",
 ]
 
 DEFAULT_RECEPTOR_CONFIG = PROJECT_ROOT / "data" / "receptor" / "receptor_config.json"
+
+# Vekil modelin dosya yolu ve kullandigi tanimlayicilar.
+# Model, scripts/05_fit_surrogate.py tarafindan gercek docking verisinden
+# ogrenilir (bkz. SurrogatePLI aciklamasi).
+SURROGATE_MODEL_PATH = PROJECT_ROOT / "data" / "surrogate_pli_model.json"
+
+SURROGATE_FEATURES: tuple[str, ...] = (
+    "heavy_atoms",
+    "molecular_weight",
+    "logp",
+    "hba",
+    "hbd",
+    "tpsa",
+    "rotatable_bonds",
+    "aromatic_fraction",
+    "sp3_fraction",
+    "n_rings",
+    "max_ring_size",
+)
 
 # Docking basarisiz oldugunda dondurulecek deger: kotu ama sonlu.
 # Sonsuz kullanmiyoruz cunku odul hesabinda NaN yayilmasina yol acar.
@@ -145,86 +167,133 @@ class PLIScorer(ABC):
 # Hizli vekil skorlayici
 # ---------------------------------------------------------------------------
 class SurrogatePLI(PLIScorer):
-    """Docking YAPMAYAN hizli tahmin edici.
+    """Docking YAPMAYAN hizli tahmin edici (ogrenilmis model).
 
     Gerekce
     -------
-    Makalenin egitim dongusu her epoch'ta binlerce molekule odul atar.
-    Gercek docking bu olcekte uygulanamaz (molekul basina saniyeler).
+    Makalenin egitim dongusu her epoch'ta yuzlerce molekule odul atar.
+    Gercek docking bu olcekte uygulanamaz (molekul basina ~10-18 saniye).
     Makale bu islevi Chemistry42'nin PLI skoruna yaptirir; Chemistry42
-    tescilli oldugu ve yayinlanmis bir denklemi bulunmadigi icin burada
-    acik, belgelenmis bir vekil kullaniyoruz.
+    tescilli ve yayinlanmis bir denklemi olmadigi icin burada acik,
+    belgelenmis bir vekil kullaniyoruz.
 
-    Model
-    -----
-    Temel: ligand verimliligi (LE). Deneysel olarak, iyi optimize edilmis
-    ilac benzeri ligandlarda LE ~ 0.3 kcal/mol/agir atom civarindadir
-    (Hopkins et al.). Buradan:
+    Neden elle yazilmis formul degil?
+    ---------------------------------
+    Ilk uygulama ligand verimliligi ve fizikokimyasal terimlerden ELLE
+    kuruldu. Gercek docking'e karsi olculdugunde ise yaramadigi gorulde:
 
-        taban_skor = -LE_ref * agir_atom_sayisi
+        ilk kalibrasyon seti (34 molekul) : Spearman -0.396  (TERS korele!)
+        daha buyuk set      (65 molekul) : Spearman +0.032  (korelasyon yok)
 
-    Uzerine, baglanma cebiyle tamamlayiciligi yakalayan carpanlar eklenir:
-      + aromatik halkalar   -> Switch-II cebi hidrofobiktir, istiflenme katkisi
-      + hidrofobik uyum     -> logP'nin optimum araliga yakinligi
-      + H-bag kapasitesi    -> yonlu etkilesimler (asiri polarlik cezalandirilir)
-      - donebilir bag cezasi-> baglanmada kaybedilen konformasyonel entropi
+    Teshis: formul molekul boyutunu odullendiriyordu, oysa dar Switch-II
+    cebinde buyuk molekuller daha KOTU skor aliyor. Sezgiye dayali bir
+    fizikokimyasal formul bu cebin davranisini yakalayamiyor.
 
-    SINIR: Bu bir enerji hesabi DEGILDIR. Molekullerin goreli siralamasi
-    icin tasarlanmistir; mutlak degerleri deneysel afiniteye karsilik gelmez.
-    Nihai secim daima VinaDocking ile yapilmalidir.
+    Bu yuzden vekil artik GERCEK DOCKING VERISINDEN OGRENILIR:
+    standartlastirilmis moleküler tanimlayicilar uzerinde ridge regresyonu
+    (scripts/05_fit_surrogate.py). Performans capraz dogrulama ile olculur
+    ve model dosyasinda saklanir.
+
+    SINIRLAR
+    --------
+    * Bu bir enerji hesabi DEGILDIR; amac goreli siralamadir.
+    * Model, uzerinde egitildigi resepture (PDB 7EW9, Switch-II cebi)
+      ozgudur. Baska bir hedef icin scripts/02 ve 05 yeniden calistirilmali.
+    * Nihai bilesik secimi DAIMA VinaDocking ile yapilmalidir.
     """
 
     name = "surrogate"
     is_real_docking = False
 
-    # Referans ligand verimliligi (kcal/mol / agir atom)
-    LE_REFERENCE = 0.32
-    # Switch-II cebi icin optimum lipofilisite araligi
-    OPTIMAL_LOGP = 3.5
-    LOGP_TOLERANCE = 2.0
+    def __init__(self, model_path: str | Path | None = None) -> None:
+        self.model_path = Path(model_path) if model_path else SURROGATE_MODEL_PATH
+        self._model: dict | None = None
+        self._warned = False
 
+    # ------------------------------------------------------------------
+    @property
+    def model(self) -> dict | None:
+        """Ogrenilmis modeli tembel yukler."""
+        if self._model is None and self.model_path.exists():
+            self._model = json.loads(self.model_path.read_text(encoding="utf-8"))
+            logger.info(
+                "Vekil PLI modeli yuklendi: CV Spearman=%+.3f, %d molekulde egitildi",
+                self._model.get("cv_spearman", float("nan")),
+                self._model.get("n_training_molecules", 0),
+            )
+        return self._model
+
+    @property
+    def is_calibrated(self) -> bool:
+        return self.model is not None
+
+    @property
+    def cv_spearman(self) -> float | None:
+        """Modelin capraz dogrulanmis sira korelasyonu (varsa)."""
+        model = self.model
+        return model.get("cv_spearman") if model else None
+
+    # ------------------------------------------------------------------
     def score(self, smiles: str) -> float:
         from kras_quantum.scoring.filters import compute_properties
+
+        model = self.model
+        if model is None:
+            if not self._warned:
+                logger.warning(
+                    "Vekil PLI modeli bulunamadi (%s). PLI bileseni 0 donecek, "
+                    "yani odulde etkisiz kalacak. Modeli uretmek icin:\n"
+                    "    python scripts/02_calibrate_surrogate.py --n-molecules 150 "
+                    "--out results/calibration_set.json\n"
+                    "    python scripts/05_fit_surrogate.py",
+                    self.model_path,
+                )
+                self._warned = True
+            return FAILED_SCORE
 
         properties = compute_properties(smiles)
         if properties is None:
             return FAILED_SCORE
 
-        heavy_atoms = properties["heavy_atoms"]
-        if heavy_atoms < 1:
-            return FAILED_SCORE
+        # --- uygulanabilirlik alani (applicability domain) ---
+        # Ogrenilmis model yalnizca egitim verisine benzeyen molekullerde
+        # anlamlidir. Alan disinda ekstrapolasyon yapar ve yaniltici degerler
+        # uretir: ornegin benzen (6 agir atom, aromatik fraksiyon 1.0) model
+        # tarafindan cok iyi skorlanir, oysa gercek docking -4.64 verir.
+        # Bu yuzden alan disindaki molekulleri skorlamayi reddediyoruz.
+        domain = model.get("applicability_domain")
+        if domain is not None:
+            heavy_atoms = properties["heavy_atoms"]
+            tolerance = domain.get("tolerance", 0.25)
+            low = domain["heavy_atoms_min"] * (1.0 - tolerance)
+            high = domain["heavy_atoms_max"] * (1.0 + tolerance)
 
-        # --- taban: ligand verimliligi ---
-        # Buyuk molekuller daha cok temas kurar, ancak katki dogrusal degildir;
-        # karekok sonmesi, asiri buyuk molekullerin skoru sismesini engeller.
-        base = -self.LE_REFERENCE * heavy_atoms * (1.0 - 0.004 * max(heavy_atoms - 25, 0))
+            if not (low <= heavy_atoms <= high):
+                logger.debug(
+                    "Molekul uygulanabilirlik alani disinda (%d agir atom, "
+                    "gecerli aralik %.0f-%.0f): %s",
+                    heavy_atoms,
+                    low,
+                    high,
+                    smiles[:50],
+                )
+                return FAILED_SCORE
 
-        # --- aromatik istiflenme (Switch-II cebi hidrofobik) ---
-        aromatic_bonus = -0.45 * properties["aromatic_fraction"] * math.sqrt(heavy_atoms)
-
-        # --- lipofilik tamamlayicilik ---
-        logp_deviation = abs(properties["logp"] - self.OPTIMAL_LOGP) / self.LOGP_TOLERANCE
-        lipophilic_term = 1.2 * min(logp_deviation**2, 4.0)  # pozitif = ceza
-
-        # --- yonlu H-baglari (asiri polarlik cezalandirilir) ---
-        hbond_capacity = min(properties["hbd"], 3) + min(properties["hba"], 6)
-        hbond_bonus = -0.25 * hbond_capacity
-        polarity_penalty = 0.015 * max(properties["tpsa"] - 120.0, 0.0)
-
-        # --- konformasyonel entropi kaybi ---
-        rotatable_penalty = 0.20 * properties["rotatable_bonds"]
-
-        score = (
-            base
-            + aromatic_bonus
-            + hbond_bonus
-            + lipophilic_term
-            + polarity_penalty
-            + rotatable_penalty
+        features = np.array(
+            [properties[name] for name in model["features"]], dtype=float
         )
+        mean = np.array(model["feature_mean"], dtype=float)
+        std = np.array(model["feature_std"], dtype=float)
+        weights = np.array(model["weights"], dtype=float)
 
-        # Fiziksel olarak makul araliga kelepcele
-        return float(max(min(score, 0.0), -16.0))
+        standardized = (features - mean) / np.where(std == 0, 1.0, std)
+        score = float(model["intercept"] + standardized @ weights)
+
+        # Egitim araliginin cok disina tasan tahminleri kelepcele: ridge
+        # modeli aykiri tanimlayicilarda fiziksel olmayan degerler uretebilir.
+        low, high = model.get("target_range", [-16.0, 0.0])
+        margin = 2.0
+        return float(np.clip(score, low - margin, min(high + margin, 0.0)))
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,72 @@
+{
+  "model_type": "ridge_regression",
+  "features": [
+    "heavy_atoms",
+    "molecular_weight",
+    "logp",
+    "hba",
+    "hbd",
+    "tpsa",
+    "rotatable_bonds",
+    "aromatic_fraction",
+    "sp3_fraction",
+    "n_rings",
+    "max_ring_size"
+  ],
+  "intercept": -7.789723076923075,
+  "weights": [
+    0.2629668430044524,
+    -0.0004087085593116812,
+    0.26502970657342084,
+    -0.41111391933059266,
+    -0.512777398167572,
+    0.4905899271134181,
+    0.002537136387394719,
+    -0.9449069284916992,
+    -0.05933970904380037,
+    -0.02407202012791969,
+    0.16388342003453774
+  ],
+  "feature_mean": [
+    33.50769230769231,
+    474.1893384615386,
+    3.5957806153846184,
+    6.523076923076923,
+    1.5846153846153845,
+    89.22738461538462,
+    6.323076923076923,
+    0.2866114115976348,
+    0.41914773822944457,
+    4.2153846153846155,
+    6.184615384615385
+  ],
+  "feature_std": [
+    8.177122075876513,
+    112.49560671890563,
+    1.5303014611204282,
+    1.7016525208676263,
+    1.0060173984167269,
+    29.704732245471394,
+    2.6083162403104914,
+    0.1962968878107084,
+    0.15491830766114056,
+    1.8851019779989677,
+    1.4130415388560043
+  ],
+  "lambda": 3.0,
+  "cv_spearman": 0.4541958041958042,
+  "cv_mae": 1.1362325135294913,
+  "n_training_molecules": 65,
+  "n_folds": 5,
+  "target_range": [
+    -11.066,
+    -3.817
+  ],
+  "applicability_domain": {
+    "heavy_atoms_min": 14.0,
+    "heavy_atoms_max": 46.0,
+    "tolerance": 0.25
+  },
+  "verdict": "ORTA - vekil kaba siralama icin kullanilabilir; nihai secim daima gercek docking ile yapilmali",
+  "note": "Gercek AutoDock Vina skorlarindan ogrenildi (PDB 7EW9, Switch-II cebi). Bu model BU resepture ozgudur; baska bir hedef icin scripts/02 ve 05 yeniden calistirilmalidir. Mutlak degerler yaklasiktir; amac goreli siralamadir."
+}

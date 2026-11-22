@@ -242,10 +242,41 @@ def test_vekil_pli_negatif_skor_verir(seed_compounds):
         assert skorlayici.score(bilesik.smiles) < 0
 
 
-def test_vekil_pli_buyuk_molekulleri_kucuklerden_ayirir():
-    """Ligand verimliligi modeli: daha cok temas -> daha iyi skor."""
+def test_vekil_pli_modeli_kalibre_edilmis():
+    """Vekil artik elle yazilmis bir formul degil, ogrenilmis bir modeldir.
+
+    Elle yazilmis surum gercek docking'e karsi ise yaramiyordu
+    (Spearman -0.396 ve +0.032). Model, scripts/05_fit_surrogate.py ile
+    gercek Vina skorlarindan ogrenilir ve data/ altinda saklanir.
+    """
     skorlayici = SurrogatePLI()
-    assert skorlayici.score(ASPIRIN) < skorlayici.score(ETHANOL)
+
+    assert skorlayici.is_calibrated, (
+        "Vekil PLI modeli bulunamadi; scripts/05_fit_surrogate.py calistirilmali"
+    )
+    assert skorlayici.cv_spearman is not None
+    assert skorlayici.cv_spearman > 0.3, (
+        f"Model capraz dogrulamada zayif: Spearman={skorlayici.cv_spearman:+.3f}"
+    )
+
+
+def test_vekil_pli_gercek_inhibitorleri_siralar(seed_compounds):
+    """Vekil, gercek inhibitorlere kucuk/ilgisiz molekullerden daha iyi
+    (daha negatif) skor vermeli."""
+    skorlayici = SurrogatePLI()
+
+    inhibitorler = np.mean([skorlayici.score(c.smiles) for c in seed_compounds])
+    kontroller = np.mean([skorlayici.score(s) for s in (ETHANOL, BENZENE, "CCCCCC")])
+
+    assert inhibitorler < kontroller
+
+
+def test_vekil_model_yoksa_etkisiz_kalir(tmp_path):
+    """Model dosyasi yoksa skorlayici sessizce yanlis deger uretmemeli."""
+    skorlayici = SurrogatePLI(model_path=tmp_path / "yok.json")
+
+    assert not skorlayici.is_calibrated
+    assert skorlayici.score(ASPIRIN) == 0.0
 
 
 def test_vekil_pli_makul_aralikta(seed_compounds):

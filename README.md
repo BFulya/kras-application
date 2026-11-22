@@ -250,19 +250,49 @@ yalnızca **3/19'u** makalenin 0.7 eşiğini geçiyordu — yani makalenin kendi
 referans ilaçları "farmakofor uyumsuz" sayılıyordu. Ağırlık 0.75'e çekildi,
 15/19 bileşik eşiği geçiyor. Bir testle sabitlendi.
 
-### Vekil PLI skoru
+### Vekil PLI skoru — elle yazılmış formülden öğrenilen modele
 
-Vekil skorlayıcı gerçek docking'e karşı ölçüldü
-([`scripts/02_calibrate_surrogate.py`](scripts/02_calibrate_surrogate.py)).
-İlk sürüm molekül boyutunu ödüllendiriyordu ve gerçek docking ile **ters
-korele** çıktı (Spearman −0.396): dar Switch-II cebinde büyük moleküller daha
-*kötü* skor alıyor (ağır atom sayısı ↔ Vina skoru Spearman +0.469).
-Vekil bu veriye göre yeniden kalibre edilmiştir; güncel korelasyon
-`results/` altındaki kalibrasyon çıktısında raporlanır.
+Eğitim döngüsü epoch başına yüzlerce molekül ödüllendirir; gerçek docking
+molekül başına ~10–18 saniye sürdüğü için bu ölçekte kullanılamaz. Dolayısıyla
+hızlı bir vekil skorlayıcı zorunludur — ama **doğru olduğu gösterilmiş** bir
+vekil.
 
-> Vekil skor, eğitim döngüsündeki hız gereksinimi yüzünden vardır: gerçek
-> docking molekül başına ~10 saniye sürer, epoch başına yüzlerce molekül
-> ödüllendirilir. **Nihai sıralama daima `--pli vina` ile yapılmalıdır.**
+İlk uygulama ligand verimliliği ve fizikokimyasal terimlerden elle kurulmuştu.
+Gerçek docking'e karşı ölçüldüğünde çöktü:
+
+| Kalibrasyon seti | Spearman | Yorum |
+|---|---|---|
+| 34 molekül | **−0.396** | **ters korele** — ödül sinyali modeli yanlış yöne iterdi |
+| 65 molekül | **+0.032** | korelasyon yok |
+
+Teşhis: formül molekül boyutunu ödüllendiriyordu, oysa dar Switch-II cebinde
+büyük moleküller daha *kötü* skor alıyor. Sezgisel bir formül bu cebin
+davranışını yakalayamıyor.
+
+Vekil bu nedenle artık **gerçek docking verisinden öğrenilir**
+([`scripts/05_fit_surrogate.py`](scripts/05_fit_surrogate.py)): standartlaştırılmış
+tanımlayıcılar üzerinde ridge regresyonu, 5-kat çapraz doğrulama ile seçilmiş
+düzenlileştirme.
+
+```
+CV Spearman : +0.454   (görülmemiş moleküllerde sıralama)
+CV MAE      : 1.14 kcal/mol
+Eğitim verisi: 65 molekül, gerçek Vina skorları
+```
+
+En güçlü katsayılar, teşhisi bağımsız olarak doğruluyor:
+`aromatic_fraction` −0.945 (aromatiklik iyi), `heavy_atoms` **+0.263**
+(büyüklük *kötü* — elle yazılmış formülün tam tersi).
+
+**Uygulanabilirlik alanı.** Model yalnızca eğitim verisine benzeyen
+moleküllerde geçerlidir. Örneğin benzen (6 ağır atom, aromatik fraksiyon 1.0)
+model tarafından −9.07 ile ödüllendiriliyordu, oysa gerçek docking −4.64
+veriyor. Bu yüzden ağır atom sayısı eğitim aralığının (±%25) dışında kalan
+moleküller skorlanmayı reddeder ve ödülde etkisiz kalır.
+
+> Vekil **sıralama** içindir, enerji hesabı değildir; ve yalnızca bu reseptöre
+> (PDB 7EW9, Switch-II cebi) özgüdür. **Nihai seçim daima `--pli vina` ile
+> gerçek docking üzerinden yapılmalıdır.**
 
 ---
 
