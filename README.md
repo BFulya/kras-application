@@ -18,6 +18,11 @@ ISM061-022) deneysel olarak umut vaat eden sonuçlar vermiştir.
 > amaçla kullanılamaz. Ürettiği moleküller hesaplamalı adaylardır; hiçbiri
 > deneysel olarak doğrulanmamıştır.
 
+![Seçim hunisi](docs/funnel.png)
+
+*Örnek bir koşu: 16 qubit QCBM + LSTM, iki kol (klasik ve kuantum-simülatör),
+15 epoch. Grafik `scripts/06_plot_funnel.py` ile üretilir.*
+
 ---
 
 ## İçindekiler
